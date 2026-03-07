@@ -1,0 +1,35 @@
+# 微信支付账单配置示例
+# 使用时复制为 wechat.yaml 并根据实际情况修改
+
+name: 微信支付
+file_pattern: 'wechat_*.csv'
+encoding: utf-8
+
+# 列头检测策略
+header_detection:
+  enabled: true
+  strategies:
+    # 微信账单通常有明确的标记行
+    - type: marker
+      marker: '----------------------微信支付账单明细列表--------------------'
+      offset: 1 # 标记行的下一行是列头
+
+    # 或者用关键词
+    - type: keywords
+      keywords: ['交易时间', '商品', '金额']
+      match_all: true
+
+    # 兜底
+    - type: fixed
+      skip_rows: 16
+
+# 列名映射
+column_mapping:
+  date: 交易时间
+  description: 商品
+  amount: 金额(元)
+  category: 交易类型
+  counterparty: 交易对方
+
+# 金额过滤
+amount_filter: '支出'

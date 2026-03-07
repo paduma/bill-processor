@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 虚拟环境
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 个人数据 - 账单文件（不提交，但保留在本地）
+bills/raw/*.csv
+bills/raw/*.xlsx
+bills/raw/*.xls
+!bills/raw/.gitkeep
+
+# 个人数据 - 输出文件（不提交，但保留在本地）
+bills/output/*
+!bills/output/.gitkeep
+
+# 个人配置 - 只提交示例配置，个人配置保留在本地
+bills/config/alipay.yaml
+bills/config/wechat.yaml
+bills/config/jingdong.yaml
+bills/config/*
+!bills/config/example-*.yaml
+
+# 个人工具脚本（可能包含个人数据路径）
+fix_*.py
+
+# 临时文件
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 测试覆盖率
+.coverage
+htmlcov/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# 环境变量
+.env
+.env.local

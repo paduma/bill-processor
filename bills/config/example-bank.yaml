@@ -1,0 +1,36 @@
+# 银行账单配置示例
+# 使用时复制为 bank.yaml 并根据实际情况修改
+
+name: 招商银行
+file_pattern: 'bank_*.xlsx'
+encoding: utf-8
+
+# 列头检测策略
+header_detection:
+  enabled: true
+  strategies:
+    # Excel 文件通常列头比较规范
+    - type: keywords
+      keywords: ['交易日期', '交易金额']
+      match_all: true
+
+    # 或者通过列数判断
+    - type: column_count
+      min_columns: 6
+      max_columns: 15
+
+    # 兜底
+    - type: fixed
+      skip_rows: 0
+
+# 列名映射
+column_mapping:
+  date: 交易日期
+  description: 交易说明
+  amount: 交易金额
+  category: 交易类型
+  counterparty: 对方账户
+
+# 银行账单通常通过金额正负判断收支
+# 负数为支出，正数为收入
+amount_filter: null

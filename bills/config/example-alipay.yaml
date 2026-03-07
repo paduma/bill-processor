@@ -1,0 +1,35 @@
+# 支付宝账单配置示例
+# 使用时复制为 alipay.yaml 并根据实际情况修改
+
+name: 支付宝
+file_pattern: 'alipay_*.csv'
+encoding: gbk
+
+# 列头检测策略
+header_detection:
+  enabled: true
+  strategies:
+    # 策略 1：查找包含关键词的行（推荐）
+    - type: keywords
+      keywords: ['交易时间', '商品说明', '金额']
+      match_all: true # 必须包含所有关键词
+
+    # 策略 2：固定跳过行数（兜底）
+    # 第一次使用时，手动查看文件确定行数
+    - type: fixed
+      skip_rows: 24
+
+# 列名映射（将原始列名映射到标准列名）
+column_mapping:
+  date: 交易时间 # 交易日期
+  description: 商品说明 # 交易描述
+  amount: 金额 # 交易金额
+  category: 交易分类 # 交易类别
+  counterparty: 交易对方 # 交易对方
+
+# 金额过滤（可选）
+# 如果账单中有"收入"和"支出"标记，可以用这个过滤
+amount_filter: '支出'
+
+# 或者通过金额正负判断（负数为支出）
+# amount_filter: null
