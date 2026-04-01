@@ -155,11 +155,23 @@ class BillProcessor:
         return df
 
     def _map_columns(self, df: pd.DataFrame, config: Dict) -> pd.DataFrame:
-        """映射列名到统一格式"""
+        """映射列名到统一格式，支持主映射和备选映射"""
         column_mapping = config['column_mapping']
 
         # 反向映射（原始列名 -> 标准列名）
         reverse_mapping = {v: k for k, v in column_mapping.items()}
+
+        # 检查主映射是否匹配当前 DataFrame 的列
+        matched = sum(1 for v in column_mapping.values() if v in df.columns)
+        total = len(column_mapping)
+
+        # 如果主映射匹配率低于 50%，尝试备选映射
+        if matched < total * 0.5 and 'column_mapping_alt' in config:
+            alt_mapping = config['column_mapping_alt']
+            alt_matched = sum(1 for v in alt_mapping.values() if v in df.columns)
+            if alt_matched > matched:
+                print(f"    🔄 使用备选列映射（匹配 {alt_matched}/{len(alt_mapping)} 列）")
+                reverse_mapping = {v: k for k, v in alt_mapping.items()}
 
         # 重命名列
         df = df.rename(columns=reverse_mapping)
@@ -215,6 +227,7 @@ class BillProcessor:
     def process_all(self) -> pd.DataFrame:
         """处理所有账单"""
         all_bills = []
+        self.processed_files = []  # 记录处理的文件
 
         for config in self.configs:
             # 找到匹配的文件
@@ -250,6 +263,11 @@ class BillProcessor:
 
                     all_bills.append(df)
 
+                    self.processed_files.append({
+                        'source': config['name'],
+                        'file': file_path.name,
+                        'total_rows': len(df),
+                    })
                 except Exception as e:
                     print(f"    ❌ 处理失败: {e}")
                     import traceback
@@ -265,9 +283,20 @@ class BillProcessor:
         print(f"\n🧹 数据清洗...")
         combined['date'] = pd.to_datetime(combined['date'], errors='coerce')
 
-        # 清理金额：移除货币符号（¥、$等）和逗号
+        # 清理金额：移除货币符号（¥、$等）、英文逗号和中文逗号
         if combined['amount'].dtype == 'object':
-            combined['amount'] = combined['amount'].astype(str).str.replace('[¥$,]', '', regex=True)
+            # 处理括号内的退款信息，如 "30.46(已退款0.06)" → 30.46 - 0.06 = 30.40
+            def parse_amount(val: str) -> str:
+                val = str(val).replace('¥', '').replace('$', '').replace(',', '').replace('，', '').strip()
+                import re as _re
+                m = _re.match(r'^([\d.]+)\(.*?([\d.]+)\)$', val)
+                if m:
+                    try:
+                        return str(round(float(m.group(1)) - float(m.group(2)), 2))
+                    except ValueError:
+                        pass
+                return val
+            combined['amount'] = combined['amount'].apply(parse_amount)
 
         combined['amount'] = pd.to_numeric(combined['amount'], errors='coerce')
 
@@ -342,9 +371,22 @@ class BillProcessor:
         }).round(2)
         daily_summary.columns = ['总金额']
 
-        # 导出到 Excel
+        # 导出到 Excel（带元数据头）
         with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
-            df.to_excel(writer, sheet_name='明细', index=False)
+            # 明细 sheet：先写元数据头，再写数据
+            meta_rows = [
+                [f'个人账单汇总 — {data_month[:4]}年{data_month[4:]}月'],
+                [f'生成时间：{datetime.now().strftime("%Y-%m-%d %H:%M")}'],
+                [f'总记录：{len(df)} 条 | 总支出：¥{df["amount"].sum():.2f}'],
+                [f'数据来源文件：'],
+            ]
+            for pf in getattr(self, 'processed_files', []):
+                meta_rows.append([f'  · {pf["source"]} — {pf["file"]}（{pf["total_rows"]} 条）'])
+            meta_rows.append([])  # 空行分隔
+
+            meta_df = pd.DataFrame(meta_rows)
+            meta_df.to_excel(writer, sheet_name='明细', index=False, header=False, startrow=0)
+            df.to_excel(writer, sheet_name='明细', index=False, startrow=len(meta_rows))
 
             if not category_summary.empty:
                 category_summary.to_excel(writer, sheet_name='按类别统计')
