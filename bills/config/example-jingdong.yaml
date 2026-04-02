@@ -1,0 +1,28 @@
+# 京东账单配置示例
+# 复制此文件为 jingdong.yaml 并根据实际账单格式调整
+name: 京东
+file_pattern: 'jingdong_*.csv'
+encoding: utf-8
+
+# 列头检测策略
+header_detection:
+  enabled: true
+  strategies:
+    - type: keywords
+      keywords: ['交易时间', '商户名称', '交易说明', '金额']
+      match_all: true
+    - type: fixed
+      skip_rows: 20
+
+# 列名映射
+column_mapping:
+  date: 交易时间
+  description: 交易说明
+  amount: 金额
+  category: 交易分类
+  counterparty: 商户名称
+  income_expense: 收/支
+  payment_method: 收/付款方式
+
+# 金额过滤：只保留"支出"
+amount_filter: '支出'

@@ -127,21 +127,41 @@ class BillProcessor:
 
         # 读取文件
         if file_path.suffix == '.csv':
-            # 特殊处理：某些 CSV 文件可能包含制表符，需要清理
+            # 先读取原始内容，清理问题字符
+            import io
+            with open(file_path, 'r', encoding=encoding) as f:
+                lines = f.readlines()
+            # 清理每行：移除 tab
+            # 然后统一数据行的字段数与表头一致（京东 CSV 行尾有多余逗号）
+            cleaned = []
+            header_comma_count = None
+            for i, line in enumerate(lines):
+                line = line.replace('\t', '').rstrip('\n\r')
+                if i == header_row and header_comma_count is None:
+                    header_comma_count = line.count(',')
+                elif header_comma_count is not None and i > header_row:
+                    # 如果数据行逗号比表头多，从右侧裁掉多余的
+                    while line.count(',') > header_comma_count:
+                        last_comma = line.rfind(',')
+                        line = line[:last_comma]
+                cleaned.append(line)
+            content = '\n'.join(cleaned)
+
             df = pd.read_csv(
-                file_path,
-                encoding=encoding,
+                io.StringIO(content),
                 skiprows=header_row,
                 header=0,
-                sep=',',  # 明确指定逗号分隔
-                engine='python'  # 使用 Python 引擎以更好地处理特殊字符
+                sep=',',
+                engine='python'
             )
 
-            # 清理列名和数据中的空白字符（包括制表符）
+            # 清理列名和数据中的空白字符
             df.columns = df.columns.str.strip()
+            # 删除 Unnamed 列（兜底）
+            df = df.loc[:, ~df.columns.str.startswith('Unnamed')]
             for col in df.columns:
                 if df[col].dtype == 'object':
-                    df[col] = df[col].astype(str).str.replace('\t', '').str.strip()
+                    df[col] = df[col].astype(str).str.strip()
 
         elif file_path.suffix in ['.xlsx', '.xls']:
             df = pd.read_excel(
